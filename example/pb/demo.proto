@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package demo;
+option go_package = "pb;demo";
+
+// Ping
+message Ping {
+  string Data = 1; // 发送的消息内容
+}
+
+// Pong
+message Pong {
+  string Data = 2;  // 返回的消息内容
+}
+
+service Demo {
+// ping、pong
+rpc echo(Ping) returns (Pong){}
+}
