@@ -52,7 +52,7 @@ func appendCtxHandlersMv() HandlerFunc {
 			return
 		}
 		c.handlers = append(c.handlers, handlers...)
-		c.Context = metadata.NewIncomingContext(c.Context, c.ReqHeaderMD)
+		c.Context = metadata.NewOutgoingContext(c.Context, c.ReqHeaderMD)
 
 		c.Next()
 	}

@@ -94,12 +94,13 @@ func (c *Ctx) setResHeader() {
 func (c *Ctx) BodyByte(f func(oldBodyByte []byte) (newBodyByte []byte)) []byte {
 	reqBodyByte, _ := ioutil.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
+	var res []byte
 	if f != nil {
-		res := f(reqBodyByte)
-		if res != nil {
-			c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(res))
-		}
+		res = f(reqBodyByte)
+	} else {
+		res = reqBodyByte
 	}
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(res))
 	return reqBodyByte
 }
 

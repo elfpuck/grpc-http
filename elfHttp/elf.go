@@ -85,14 +85,14 @@ func (e *Engine) defaultResponseFormat(c *Ctx, res interface{}, err error) H {
 	if err != nil {
 		status, ok := status.FromError(err)
 		if ok {
-			result["RetCode"] = status.Code()
+			result["Code"] = status.Code()
 			result["Message"] = status.Message()
 		} else {
-			result["RetCode"] = codes.Internal
+			result["Code"] = codes.Internal
 			result["Message"] = err.Error()
 		}
 	} else {
-		result["RetCode"] = codes.OK
+		result["Code"] = codes.OK
 		result["Data"] = res
 	}
 	return result
@@ -168,6 +168,6 @@ func (e *Engine) Run(addr string) error {
 	// append action handlers
 	e.Use(appendCtxHandlersMv())
 
-	fmt.Printf("\n\nListening RPC on %s \n", addr)
+	fmt.Printf("\n\nListening Http on %s \n", addr)
 	return http.ListenAndServe(addr, e)
 }

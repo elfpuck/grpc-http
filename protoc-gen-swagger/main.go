@@ -79,7 +79,7 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 				Name:     fmt.Sprintf("%v%s", file.GoPackageName, method.Output.GoIdent.GoName),
 				Params: []*schemaParamsStruct{
 					{
-						ParamsName: "RetCode",
+						ParamsName: "Code",
 						ParamsType: "integer",
 					},
 					{
