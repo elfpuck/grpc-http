@@ -13,7 +13,6 @@ protoc -I=. --go_out=plugins=grpc:. --http_out=. --swagger_out=. xxx.proto
 ```
 
 ## Usage
-[示例](./example/main.go)
 ```go
 package main
 
