@@ -3,7 +3,9 @@ package elfHttp
 import (
 	"context"
 	"fmt"
+	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -39,7 +41,7 @@ func New() *Engine {
 	engine.globalGroup = &Service{}
 
 	// 将res写入writer
-	engine.Use(responseFormatMv(), recoveryMv())
+	engine.Use(responseFormatMv(), loggerMv(), recoveryMv())
 	engine.pool.New = func() interface{} {
 		return engine.allocateContext()
 	}
@@ -116,6 +118,10 @@ func (e *Engine) Use(middleware ...HandlerFunc) {
 	e.globalGroup.Use(middleware...)
 }
 
+func (e *Engine) UseGrpc(opts ...grpc.DialOption) {
+	e.globalGroup.UseGrpc(opts...)
+}
+
 func (e *Engine) Service(serviceName string, handlers ...HandlerFunc) *Service {
 	g := &Service{
 		name:              serviceName,
@@ -144,8 +150,10 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (e *Engine) mapApiGroupList() error {
 	for _, group := range e.groupList {
+		debugPrint("\nRegister Service %s\n", aurora.Green(group.name))
 		for method, handlers := range group.methodHandlersMap {
 			routePath := path.Join("/", group.name, method)
+			debugPrint("Register Method %s\n", aurora.Cyan(routePath))
 			if _, ok := e.methodHandlersMap[routePath]; ok {
 				return errors.New(fmt.Sprintf("Service %s method conflict %s", group.name, method))
 			}
@@ -164,10 +172,20 @@ func (e *Engine) Run(addr string) error {
 	if err := e.mapApiGroupList(); err != nil {
 		return err
 	}
-
 	// append action handlers
 	e.Use(appendCtxHandlersMv())
 
-	fmt.Printf("\n\nListening Http on %s \n", addr)
+	debugPrint("\nListening and serving HTTP on %s \n", aurora.Green(addr))
 	return http.ListenAndServe(addr, e)
+}
+
+func (e *Engine) RunTLS(addr string, certFile, keyFile string) error {
+	if err := e.mapApiGroupList(); err != nil {
+		return err
+	}
+	// append action handlers
+	e.Use(appendCtxHandlersMv())
+
+	debugPrint("\nListening and serving HTTPS on %s \n", aurora.Green(addr))
+	return http.ListenAndServeTLS(addr, certFile, keyFile,  e)
 }

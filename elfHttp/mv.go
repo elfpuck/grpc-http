@@ -3,10 +3,12 @@ package elfHttp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/logrusorgru/aurora"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"net/http"
+	"time"
 )
 
 func recoveryMv() HandlerFunc {
@@ -21,6 +23,21 @@ func recoveryMv() HandlerFunc {
 		}()
 
 		c.Next()
+	}
+}
+
+func loggerMv() HandlerFunc {
+	return func(c *Ctx) {
+		startTime := time.Now()
+		c.Next()
+		if IsDebugging() {
+			endTime := time.Now()
+			if c.res.err != nil{
+				debugPrint("%s %20s %16s %5d ms | %s", time.Now().Format("2006-01-02 15:04:05"), aurora.Red(c.routePath), c.ClientIP(), endTime.Sub(startTime).Milliseconds(), aurora.Red(c.res.err.Error()))
+			}else {
+				debugPrint("%s %20s %16s %5d ms", time.Now().Format("2006-01-02 15:04:05"), aurora.Green(c.routePath), c.ClientIP(), endTime.Sub(startTime).Milliseconds())
+			}
+		}
 	}
 }
 
@@ -42,7 +59,7 @@ func responseFormatMv() HandlerFunc {
 
 func appendCtxHandlersMv() HandlerFunc {
 	return func(c *Ctx) {
-		if c.Request.Method != "POST" {
+		if c.Request.Method != "POST" || c.Request.Header.Get("content-type") != "application/json"{
 			c.Result(nil, status.Error(codes.InvalidArgument, "Request Should Use POST And application/json"))
 			return
 		}

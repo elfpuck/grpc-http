@@ -3,16 +3,16 @@ package main
 const TEMPLATE = `
 {{range .Services }}
 // 注册 {{ .Name }}
-func Register{{ .Name }}FromEndpoint(ctx context.Context, service *elfHttp.Service, endpoint string, opts ...grpc.DialOption) error {
-	conn, err := grpc.DialContext(ctx, endpoint, opts...)
+func Register{{ .Name }}FromEndpoint(service *elfHttp.Service, endpoint string, opts ...grpc.DialOption) {
+	conn, err := service.Dial(endpoint, opts...)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	return register{{ .Name }}HandlerClient(service, New{{ .Name }}Client(conn))
+	register{{ .Name }}HandlerClient(service, New{{ .Name }}Client(conn))
 }
 
 // 注册Method
-func register{{ .Name }}HandlerClient(s *elfHttp.Service, client {{ .Name }}Client) error {
+func register{{ .Name }}HandlerClient(s *elfHttp.Service, client {{ .Name }}Client) {
 {{range .Methods }}
 	s.Method("{{ .Name }}", func(c *elfHttp.Ctx) {
         params := new({{ .Input}})
@@ -23,7 +23,6 @@ func register{{ .Name }}HandlerClient(s *elfHttp.Service, client {{ .Name }}Clie
 		c.Result(client.{{ .Name }}(c.Context, params, grpc.Header(&c.ResHeaderMD), grpc.Trailer(&c.ResTrailerMD)))
 	})
 {{end}}
-return nil
 }
 {{end}}
 `

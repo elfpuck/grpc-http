@@ -65,7 +65,6 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 
 func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 	for _, pkgPath := range []string{
-		"context",
 		"github.com/elfpuck/grpc-http/elfHttp",
 		"google.golang.org/grpc",
 	} {

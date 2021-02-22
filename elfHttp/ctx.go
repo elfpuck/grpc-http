@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"math"
+	"net"
 	"net/http"
 	"net/textproto"
 	"strings"
@@ -38,6 +39,7 @@ type resStruct struct {
 }
 
 func (c *Ctx) reset() {
+	c.Context = c.engine.Context
 	c.index = -1
 	c.writer = nil
 	c.Request = nil
@@ -119,4 +121,16 @@ func (c *Ctx) Result(resData interface{}, err error) {
 		resData: resData,
 		err:     err,
 	}
+}
+
+func (c *Ctx) ClientIP() string {
+	clientIP := ""
+	if clientIP = c.Request.Header.Get("X-Forwarded-For"); clientIP == "" {
+		if clientIP = strings.TrimSpace(c.Request.Header.Get("X-Real-Ip")); clientIP == "" {
+			if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr)); err == nil {
+				clientIP = ip
+			}
+		}
+	}
+	return clientIP
 }
