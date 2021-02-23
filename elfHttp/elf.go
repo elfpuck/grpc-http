@@ -95,6 +95,7 @@ func (e *Engine) defaultResponseFormat(c *Ctx, res interface{}, err error) H {
 		}
 	} else {
 		result["Code"] = codes.OK
+		result["Message"] = "ok"
 		result["Data"] = res
 	}
 	return result
