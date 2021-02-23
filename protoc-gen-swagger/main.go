@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -51,10 +52,11 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 
 func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 	data := PackageData{
-		Title:       file.Proto.GetName(),
+		Title:      file.Proto.GetPackage(),
+		Version: 	time.Now().Format("2006-01-02 15:04:05"),
 		Description: fmt.Sprintf("%s created by https://github.com/elfpuck/grpc-http/protoc-gen-swagger on %s", file.Proto.GetName(), time.Now().Format("2006-01-02 15:04:05")),
 		PathArr:     make([]*pathStruct, 0, 20),
-		SchemaArr:   make([]*schemaStruct, 0, 40),
+		SchemaReqArr:   make([]*schemaStruct, 0, 40),
 	}
 
 	for _, service := range file.Services {
@@ -68,18 +70,6 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 				Comments: currentStr(method.Output.Comments.Leading.String(), method.Output.Comments.Trailing.String()),
 				Name:     fmt.Sprintf("%v%s", file.GoPackageName, method.Output.GoIdent.GoName),
 				EndComma: ",",
-				Params: []*schemaParams{
-					{
-						Name: "Code",
-						Property: "{\n\t\t\t\t\t\"type\": \"integer\",\n\t\t\t\t\t\"description\": \"返回状态码\"\n\t\t\t\t}",
-						EndComma: ",",
-					},
-					{
-						Name: "Message",
-						Property: "{\n\t\t\t\t\t\"type\": \"string\",\n\t\t\t\t\t\"description\": \"报错内容\"\n\t\t\t\t}",
-						EndComma: ",",
-					},
-				},
 			}
 			api := pathStruct{
 				Summary:   currentStr(method.Comments.Leading.String()),
@@ -91,15 +81,17 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 			}
 			// 请求参数
 			for _, v := range method.Input.Fields {
-				//reqSchemaParamsStruct := schemaParamsStruct{
-				//	Comments:   currentStr(v.Comments.Leading.String(), v.Comments.Trailing.String()),
-				//	ParamsName: v.Desc.JSONName(),
-				//	ParamsType: switchType(v.Desc.Kind().String()),
-				//}
-
 				schemaReq.Params = append(schemaReq.Params, &schemaParams{
 					Name:     v.Desc.JSONName(),
-					Property: "{}",
+					Property: parseFields(v),
+					EndComma: ",",
+				})
+			}
+
+			for _, v := range method.Output.Fields {
+				schemaRes.Params = append(schemaRes.Params, &schemaParams{
+					Name:     v.Desc.JSONName(),
+					Property: parseFields(v),
 					EndComma: ",",
 				})
 			}
@@ -108,24 +100,13 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 				schemaReq.Params[len(schemaReq.Params) - 1].EndComma = ""
 			}
 
-			//返回参数
-			resData := schemaParams{
-				Name: "Data",
-				Property: "{}",
-				EndComma: "",
+			if len(schemaRes.Params) > 0{
+				schemaRes.Params[len(schemaRes.Params) - 1].EndComma = ""
 			}
-			//for _, v := range method.Output.Fields {
-			//	sonSchema := schemaParamsStruct{
-			//		Comments:   currentStr(v.Comments.Leading.String(), v.Comments.Trailing.String()),
-			//		ParamsName: v.Desc.JSONName(),
-			//		ParamsType: switchType(v.Desc.Kind().String()),
-			//	}
-			//	resSchemaParamsStruct.SonParams = append(resSchemaParamsStruct.SonParams, &sonSchema)
-			//}
 
-			schemaRes.Params = append(schemaRes.Params, &resData)
 
-			data.SchemaArr = append(data.SchemaArr, &schemaReq, &schemaRes)
+			data.SchemaReqArr = append(data.SchemaReqArr, &schemaReq)
+			data.SchemaResArr = append(data.SchemaResArr, &schemaRes)
 			data.PathArr = append(data.PathArr, &api)
 		}
 	}
@@ -133,8 +114,8 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 	if len(data.PathArr) > 0{
 		data.PathArr[len(data.PathArr) -1].EndComma = ""
 	}
-	if len(data.SchemaArr) > 0{
-		data.SchemaArr[len(data.SchemaArr) -1].EndComma = ""
+	if len(data.SchemaResArr) > 0{
+		data.SchemaResArr[len(data.SchemaResArr) -1].EndComma = ""
 	}
 	g.P(executeTemplate(&data))
 }
@@ -169,17 +150,49 @@ func switchType(str string) string {
 		return "number"
 	case "bytes":
 		return "string"
+	case "bool":
+		return "boolean"
 	default:
 		return str
 	}
 	return str
 }
 
+func parseFields(field *protogen.Field) string {
+	data := schemaProperty{
+		Description: currentStr(field.Comments.Leading.String(), field.Comments.Trailing.String()),
+	}
+	if field.Desc.IsMap(){
+		data.Type = "object"
+	}else if field.Desc.IsList(){
+		data.Type = "array"
+		fieldType := switchType(field.Desc.Kind().String())
+		subData := schemaProperty{
+			Type: fieldType,
+		}
+		if fieldType == "object" {
+			// todo
+		}
+		data.Items = &subData
+	}else {
+		fieldType := switchType(field.Desc.Kind().String())
+		data.Type = fieldType
+		if fieldType == "object" {
+			// todo
+		}
+	}
+
+	dataByte, _ := json.Marshal(data)
+	return string(dataByte)
+}
+
 type PackageData struct {
 	Title       string
+	Version     string
 	Description string
 	PathArr     []*pathStruct
-	SchemaArr   []*schemaStruct
+	SchemaReqArr   []*schemaStruct
+	SchemaResArr   []*schemaStruct
 }
 
 type pathStruct struct {
@@ -205,7 +218,8 @@ type schemaParams struct {
 }
 
 type schemaProperty struct {
-	Type string								`json:"type,omitempty"`
-	Description string  					`json:"description,omitempty"`
-	Properties map[string]schemaProperty	`json:"properties,omitempty"`
+	Type string										`json:"type,omitempty"`
+	Description string  							`json:"description,omitempty"`
+	Properties map[string]schemaProperty			`json:"properties,omitempty"`
+	Items *schemaProperty							`json:"items,omitempty"`
 }

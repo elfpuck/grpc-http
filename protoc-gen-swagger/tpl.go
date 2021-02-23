@@ -4,7 +4,7 @@ const TEMPLATE = `{
     "openapi":"3.0.0",
     "version":"1.0.0",
     "info":{
-        "version":"1.0.0",
+        "version": "{{ .Version }}",
         "title":"{{ .Title }}",
         "description":"{{ .Description }}"
     },
@@ -46,8 +46,8 @@ const TEMPLATE = `{
   },
   "components": {
       "schemas": {
-{{- range .SchemaArr }}
-          "{{ .Name }}":{
+{{- range .SchemaReqArr }}
+          	"{{ .Name }}":{
 {{- if .Comments }}
       		"description": "{{ .Comments }}",
 {{- end}}
@@ -56,6 +56,29 @@ const TEMPLATE = `{
 {{- range .Params }}
             	"{{ .Name }}": {{ .Property|unescaped }}{{ .EndComma }}
 {{- end}}
+			}
+		  }{{ .EndComma }}
+{{- end}}
+{{- range .SchemaResArr }}
+			"{{ .Name }}":{
+				"type": "object",
+            	"properties": {
+					"Code": {
+						"type": "integer",
+						"description": "返回状态码"
+					},
+					"Message": {
+						"type": "string",
+						"description": "报错内容"
+					},
+					"Data": {
+						"type": "object",
+						"properties": {
+{{- range .Params }}
+            				"{{ .Name }}": {{ .Property|unescaped }}{{ .EndComma }}
+{{- end}}
+						}
+					}
 			}
 		  }{{ .EndComma }}
 {{- end}}
