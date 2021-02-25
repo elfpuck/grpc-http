@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/gogo/protobuf/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -117,6 +118,21 @@ func (c *Ctx) Unmarshal(req interface{}) error {
 // 设置返回值
 func (c *Ctx) Result(resData interface{}, err error) {
 	c.index = abortIndex
+
+	if err == nil && resData != nil && c.engine.jsonPb != nil {
+		switch m := resData.(type) {
+		case proto.Message:
+			str, marShalErr := c.engine.jsonPb.MarshalToString(m)
+			if err != nil {
+				resData = nil
+				err = marShalErr
+			}
+			res := H{}
+			json.Unmarshal([]byte(str), &res)
+			resData = res
+		}
+	}
+
 	c.res = &resStruct{
 		resData: resData,
 		err:     err,

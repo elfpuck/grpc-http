@@ -13,11 +13,11 @@ type Service struct {
 	engine            *Engine
 }
 
-func (g *Service) UseGrpc(opts ...grpc.DialOption)  {
+func (g *Service) UseGrpc(opts ...grpc.DialOption) {
 	if len(opts) == 0 {
 		return
 	}
-	if g.dialOptions == nil{
+	if g.dialOptions == nil {
 		g.dialOptions = []grpc.DialOption{}
 	}
 	g.dialOptions = append(g.dialOptions, opts...)
@@ -48,6 +48,6 @@ func (g *Service) Method(method string, handlers ...HandlerFunc) {
 	g.methodHandlersMap[method] = handlers
 }
 
-func (g *Service) Dial(endpoint string, opts ...grpc.DialOption)  (conn *grpc.ClientConn, err error)  {
+func (g *Service) Dial(endpoint string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 	return grpc.DialContext(g.engine.Context, endpoint, g.getDialOptions(opts...)...)
 }

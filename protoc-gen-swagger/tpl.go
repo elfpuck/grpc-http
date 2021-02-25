@@ -2,16 +2,16 @@ package main
 
 const TEMPLATE = `{
     "openapi":"3.0.0",
-    "version":"1.0.0",
     "info":{
-        "version": "{{ .Version }}",
-        "title":"{{ .Title }}",
-        "description":"{{ .Description }}"
+{{- range .InfoPropArr }}
+		"{{ .Name }}": {{ .Value|unescaped }},
+{{- end}}
+        "license": {}
     },
-    "servers":[
-
-    ],
-  "paths": { {{- range .PathArr }}
+{{- range .PropArr }}
+	"{{ .Name }}": {{ .Value|unescaped }},
+{{- end}}
+  	"paths": { {{- range .PathArr }}
         "{{ .RoutePath }}":{
             "post":{
                 "tags":[
@@ -43,45 +43,15 @@ const TEMPLATE = `{
             }
         }{{ .EndComma }}
 {{- end}}
-  },
-  "components": {
-      "schemas": {
-{{- range .SchemaReqArr }}
-          	"{{ .Name }}":{
-{{- if .Comments }}
-      		"description": "{{ .Comments }}",
+  	},
+  	"components": {
+{{- range .ComponentsPropArr }}
+		"{{ .Name }}": {{ .Value|unescaped }},
 {{- end}}
-			"type": "object",
-            "properties": {
-{{- range .Params }}
-            	"{{ .Name }}": {{ .Property|unescaped }}{{ .EndComma }}
+      	"schemas": {
+{{- range .SchemaArr }}
+          	"{{ .Name }}": {{ .Value|unescaped }}{{ .EndComma}}
 {{- end}}
-			}
-		  }{{ .EndComma }}
-{{- end}}
-{{- range .SchemaResArr }}
-			"{{ .Name }}":{
-				"type": "object",
-            	"properties": {
-					"Code": {
-						"type": "integer",
-						"description": "返回状态码"
-					},
-					"Message": {
-						"type": "string",
-						"description": "报错内容"
-					},
-					"Data": {
-						"type": "object",
-						"properties": {
-{{- range .Params }}
-            				"{{ .Name }}": {{ .Property|unescaped }}{{ .EndComma }}
-{{- end}}
-						}
-					}
-			}
-		  }{{ .EndComma }}
-{{- end}}
-	}
-  }
+		}
+  	}
 }`

@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/imdario/mergo"
 	"google.golang.org/protobuf/compiler/protogen"
 	"html/template"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -17,8 +19,10 @@ var (
 )
 
 const (
-	version  = "1.0.0"
-	toolName = "protoc-gen-swagger"
+	version         = "1.0.0"
+	toolName        = "protoc-gen-swagger"
+	schemaReqPrefix = "Req__"
+	schemaResPrefix = "Res__"
 )
 
 func main() {
@@ -52,78 +56,133 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 
 func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 	data := PackageData{
-		Title:      file.Proto.GetPackage(),
-		Version: 	time.Now().Format("2006-01-02 15:04:05"),
-		Description: fmt.Sprintf("%s created by https://github.com/elfpuck/grpc-http/protoc-gen-swagger on %s", file.Proto.GetName(), time.Now().Format("2006-01-02 15:04:05")),
-		PathArr:     make([]*pathStruct, 0, 20),
-		SchemaReqArr:   make([]*schemaStruct, 0, 40),
+		PathArr: make([]*pathStruct, 0, 20),
+		PropMap: map[string]string{
+			"info.title":   "\"" + file.Proto.GetPackage() + "\"",
+			"info.version": "\"" + time.Now().Format("2006-01-02 15:04:05") + "\"",
+		},
+		SchemaMap: map[string]string{},
 	}
 
 	for _, service := range file.Services {
+
+		addProp(service.Comments.Leading.String(), &data)
+
 		for _, method := range service.Methods {
-			schemaReq := schemaStruct{
-				Comments: currentStr(method.Input.Comments.Leading.String(), method.Input.Comments.Trailing.String()),
-				Name:     fmt.Sprintf("%v%s", file.GoPackageName, method.Input.GoIdent.GoName),
-				EndComma: ",",
-			}
-			schemaRes := schemaStruct{
-				Comments: currentStr(method.Output.Comments.Leading.String(), method.Output.Comments.Trailing.String()),
-				Name:     fmt.Sprintf("%v%s", file.GoPackageName, method.Output.GoIdent.GoName),
-				EndComma: ",",
-			}
+
 			api := pathStruct{
 				Summary:   currentStr(method.Comments.Leading.String()),
 				RoutePath: path.Join("/", fmt.Sprintf("%v", file.GoPackageName), method.GoName),
-				SchemaReq: schemaReq.Name,
-				SchemaRes: schemaRes.Name,
+				SchemaReq: schemaReqPrefix + method.Input.GoIdent.GoName,
+				SchemaRes: schemaResPrefix + method.Output.GoIdent.GoName,
 				Tag:       service.GoName,
-				EndComma: ",",
-			}
-			// 请求参数
-			for _, v := range method.Input.Fields {
-				schemaReq.Params = append(schemaReq.Params, &schemaParams{
-					Name:     v.Desc.JSONName(),
-					Property: parseFields(v),
-					EndComma: ",",
-				})
+				EndComma:  ",",
 			}
 
-			for _, v := range method.Output.Fields {
-				schemaRes.Params = append(schemaRes.Params, &schemaParams{
-					Name:     v.Desc.JSONName(),
-					Property: parseFields(v),
-					EndComma: ",",
-				})
-			}
-
-			if len(schemaReq.Params) > 0{
-				schemaReq.Params[len(schemaReq.Params) - 1].EndComma = ""
-			}
-
-			if len(schemaRes.Params) > 0{
-				schemaRes.Params[len(schemaRes.Params) - 1].EndComma = ""
-			}
-
-
-			data.SchemaReqArr = append(data.SchemaReqArr, &schemaReq)
-			data.SchemaResArr = append(data.SchemaResArr, &schemaRes)
 			data.PathArr = append(data.PathArr, &api)
+
+			addSchema(api.SchemaReq, method.Input, &data)
+			addSchema(api.SchemaRes, method.Output, &data)
 		}
 	}
 
-	if len(data.PathArr) > 0{
-		data.PathArr[len(data.PathArr) -1].EndComma = ""
+	parseProp(&data)
+	parseSchema(&data)
+
+	if len(data.PathArr) > 0 {
+		data.PathArr[len(data.PathArr)-1].EndComma = ""
 	}
-	if len(data.SchemaResArr) > 0{
-		data.SchemaResArr[len(data.SchemaResArr) -1].EndComma = ""
-	}
+
 	g.P(executeTemplate(&data))
+}
+
+func addProp(comment string, data *PackageData) {
+	propMap := map[string]string{}
+	for _, s := range strings.Split(comment, "\n") {
+		swaggerReg := regexp.MustCompile("^//\\s*@swagger_(\\S*)\\s*(.*)$")
+		baseSplit := swaggerReg.FindStringSubmatch(s)
+		if len(baseSplit) < 2 {
+			continue
+		}
+		propMap[baseSplit[1]] = baseSplit[2]
+	}
+	mergo.Merge(&data.PropMap, propMap, mergo.WithOverride)
+}
+
+func parseProp(data *PackageData) {
+	for k, v := range data.PropMap {
+		splitKey := strings.Split(k, ".")
+		if len(splitKey) == 1 {
+			if splitKey[0] != "openapi" && splitKey[0] != "info" && splitKey[0] != "paths" || splitKey[0] != "components" {
+				data.PropArr = append(data.PropArr, &propStruct{
+					Name:  splitKey[0],
+					Value: v,
+				})
+			}
+			continue
+		}
+		switch splitKey[0] {
+		case "info":
+			if splitKey[1] != "license" {
+				data.InfoPropArr = append(data.InfoPropArr, &propStruct{
+					Name:  splitKey[1],
+					Value: v,
+				})
+			}
+		case "components":
+			if splitKey[1] != "schemas" {
+				data.ComponentsPropArr = append(data.ComponentsPropArr, &propStruct{
+					Name:  splitKey[1],
+					Value: v,
+				})
+			}
+		}
+	}
+}
+
+func addSchema(key string, message *protogen.Message, data *PackageData) {
+	baseSchema := schemaProperty{
+		Description: currentStr(message.Comments.Leading.String(), message.Comments.Trailing.String()),
+		Type:        "object",
+		Properties:  map[string]schemaProperty{},
+	}
+
+	for _, v := range parseFields(message.Fields) {
+		baseSchema.Properties[v.Name] = v.Property
+	}
+
+	dataByte, _ := json.Marshal(baseSchema)
+
+	data.SchemaMap[key] = string(dataByte)
+}
+
+func parseSchema(data *PackageData) {
+	formatReq, formatReqExists := data.PropMap["format.req"]
+	formatRes, formatResExists := data.PropMap["format.res"]
+	for k, v := range data.SchemaMap {
+		if formatReqExists && strings.HasPrefix(k, schemaReqPrefix) {
+			v = "{ \"type\": \"object\", \"properties\": " + strings.Replace(formatReq, "{{ .Data }}", v, -1) + "}"
+		}
+		if formatResExists && strings.HasPrefix(k, schemaResPrefix) {
+			v = "{ \"type\": \"object\", \"properties\": " + strings.Replace(formatRes, "{{ .Data }}", v, -1) + "}"
+		}
+		data.SchemaArr = append(data.SchemaArr, &schemaStruct{
+			Name:     k,
+			Value:    v,
+			EndComma: ",",
+		})
+	}
+
+	if len(data.SchemaArr) > 0 {
+		data.SchemaArr[len(data.SchemaArr)-1].EndComma = ""
+	}
 }
 
 func executeTemplate(data *PackageData) string {
 	t := template.Must(template.New("swagger.json").Funcs(
 		template.FuncMap{"unescaped": func(str string) template.HTML {
-			return template.HTML(str)}}).Parse(TEMPLATE))
+			return template.HTML(str)
+		}}).Parse(TEMPLATE))
 	res := new(bytes.Buffer)
 	if err := t.Execute(res, data); err != nil {
 		panic(err)
@@ -142,8 +201,6 @@ func currentStr(str ...string) string {
 
 func switchType(str string) string {
 	switch str {
-	case "message":
-		return "object"
 	case "int32", "uint32", "int64", "uint64", "sint32", "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64":
 		return "integer"
 	case "double", "float":
@@ -158,41 +215,83 @@ func switchType(str string) string {
 	return str
 }
 
-func parseFields(field *protogen.Field) string {
+func parseFields(fields []*protogen.Field) []*schemaParams {
+	res := make([]*schemaParams, 0, len(fields))
+	for _, v := range fields {
+		res = append(res, &schemaParams{
+			Name:     v.Desc.JSONName(),
+			Property: parseField(v),
+			EndComma: ",",
+		})
+	}
+	if len(res) > 0 {
+		res[len(res)-1].EndComma = ""
+	}
+	return res
+}
+
+func parseField(field *protogen.Field) schemaProperty {
 	data := schemaProperty{
 		Description: currentStr(field.Comments.Leading.String(), field.Comments.Trailing.String()),
 	}
-	if field.Desc.IsMap(){
+	if field.Desc.IsMap() {
 		data.Type = "object"
-	}else if field.Desc.IsList(){
+	} else if field.Desc.IsList() {
 		data.Type = "array"
-		fieldType := switchType(field.Desc.Kind().String())
-		subData := schemaProperty{
-			Type: fieldType,
-		}
-		if fieldType == "object" {
-			// todo
-		}
-		data.Items = &subData
-	}else {
-		fieldType := switchType(field.Desc.Kind().String())
-		data.Type = fieldType
-		if fieldType == "object" {
-			// todo
-		}
+		data.Items = &schemaProperty{}
+		sonFieldType(field, data.Items)
+	} else {
+		sonFieldType(field, &data)
 	}
+	return data
+}
 
-	dataByte, _ := json.Marshal(data)
-	return string(dataByte)
+func sonFieldType(field *protogen.Field, schema *schemaProperty) {
+
+	fieldType := switchType(field.Desc.Kind().String())
+	if fieldType == "message" {
+		schema.Type = "object"
+		schema.Properties = sonObjectFieldType(field.Message.Fields)
+		return
+	}
+	if fieldType == "enum" {
+		schema.Type = "string"
+		schema.Enum = sonEnumFieldType(field)
+		return
+	}
+	schema.Type = fieldType
+}
+
+func sonEnumFieldType(field *protogen.Field) []string {
+	res := make([]string, 0, len(field.Enum.Values))
+	for _, v := range field.Enum.Values {
+		res = append(res, strings.TrimPrefix(v.GoIdent.GoName, field.Enum.GoIdent.GoName+"_"))
+	}
+	return res
+}
+
+func sonObjectFieldType(fields []*protogen.Field) map[string]schemaProperty {
+	res := map[string]schemaProperty{}
+	for _, v := range fields {
+		res[v.Desc.JSONName()] = parseField(v)
+	}
+	return res
 }
 
 type PackageData struct {
-	Title       string
-	Version     string
-	Description string
-	PathArr     []*pathStruct
-	SchemaReqArr   []*schemaStruct
-	SchemaResArr   []*schemaStruct
+	PropMap           map[string]string
+	PathArr           []*pathStruct
+	PropArr           []*propStruct
+	InfoPropArr       []*propStruct
+	ComponentsPropArr []*propStruct
+	SecurityPropArr   []*propStruct
+	SchemaMap         map[string]string
+	SchemaArr         []*schemaStruct
+}
+
+type propStruct struct {
+	Name  string
+	Value string
 }
 
 type pathStruct struct {
@@ -205,21 +304,21 @@ type pathStruct struct {
 }
 
 type schemaStruct struct {
-	Comments string
 	Name     string
-	Params   []*schemaParams
-	EndComma  string
+	Value    string
+	EndComma string
 }
 
 type schemaParams struct {
-	Name string
-	Property string
-	EndComma  string
+	Name     string
+	Property schemaProperty
+	EndComma string
 }
 
 type schemaProperty struct {
-	Type string										`json:"type,omitempty"`
-	Description string  							`json:"description,omitempty"`
-	Properties map[string]schemaProperty			`json:"properties,omitempty"`
-	Items *schemaProperty							`json:"items,omitempty"`
+	Type        string                    `json:"type,omitempty"`
+	Description string                    `json:"description,omitempty"`
+	Properties  map[string]schemaProperty `json:"properties,omitempty"`
+	Items       *schemaProperty           `json:"items,omitempty"`
+	Enum        []string                  `json:"enum,omitempty"`
 }

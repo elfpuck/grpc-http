@@ -3,6 +3,7 @@ package elfHttp
 import (
 	"context"
 	"fmt"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -28,15 +29,22 @@ type Engine struct {
 	methodHandlersMap  map[string]handlersChain
 	responseFormatFunc responseFormatFunc
 	pool               sync.Pool
+	jsonPb             *jsonpb.Marshaler
 }
 
-func New() *Engine {
+func New(Opt ...*Opt) *Engine {
 	engine := &Engine{
 		Context:           context.TODO(),
 		headerMDPrefix:    "Grpc-Metadata-",
 		trailerMDPrefix:   "Grpc-Trailer-",
 		groupList:         make([]*Service, 0, 2),
 		methodHandlersMap: map[string]handlersChain{},
+	}
+	if len(Opt) > 0 {
+		opt := Opt[0]
+		if opt.JSONPb != nil {
+			engine.jsonPb = opt.JSONPb
+		}
 	}
 	engine.globalGroup = &Service{}
 
@@ -46,6 +54,10 @@ func New() *Engine {
 		return engine.allocateContext()
 	}
 	return engine
+}
+
+type Opt struct {
+	JSONPb *jsonpb.Marshaler
 }
 
 func (e *Engine) allocateContext() *Ctx {
@@ -188,5 +200,5 @@ func (e *Engine) RunTLS(addr string, certFile, keyFile string) error {
 	e.Use(appendCtxHandlersMv())
 
 	debugPrint("\nListening and serving HTTPS on %s \n", aurora.Green(addr))
-	return http.ListenAndServeTLS(addr, certFile, keyFile,  e)
+	return http.ListenAndServeTLS(addr, certFile, keyFile, e)
 }
