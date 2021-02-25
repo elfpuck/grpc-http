@@ -19,10 +19,12 @@ var (
 )
 
 const (
-	version         = "1.0.0"
-	toolName        = "protoc-gen-swagger"
-	schemaReqPrefix = "Req__"
-	schemaResPrefix = "Res__"
+	version           = "1.0.0"
+	toolName          = "protoc-gen-swagger"
+	schemaReqPrefix   = "Req__"
+	schemaResPrefix   = "Res__"
+	swaggerRegex      = "^//\\s*@swagger_(\\S*)\\s*(.*)$"
+	swaggerFormatData = "{{ .Data }}"
 )
 
 func main() {
@@ -99,7 +101,7 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 func addProp(comment string, data *PackageData) {
 	propMap := map[string]string{}
 	for _, s := range strings.Split(comment, "\n") {
-		swaggerReg := regexp.MustCompile("^//\\s*@swagger_(\\S*)\\s*(.*)$")
+		swaggerReg := regexp.MustCompile(swaggerRegex)
 		baseSplit := swaggerReg.FindStringSubmatch(s)
 		if len(baseSplit) < 2 {
 			continue
@@ -161,7 +163,7 @@ func parseSchema(data *PackageData) {
 	formatRes, formatResExists := data.PropMap["format.res"]
 	for k, v := range data.SchemaMap {
 		if formatReqExists && strings.HasPrefix(k, schemaReqPrefix) {
-			v = "{ \"type\": \"object\", \"properties\": " + strings.Replace(formatReq, "{{ .Data }}", v, -1) + "}"
+			v = "{ \"type\": \"object\", \"properties\": " + strings.Replace(formatReq, swaggerFormatData, v, -1) + "}"
 		}
 		if formatResExists && strings.HasPrefix(k, schemaResPrefix) {
 			v = "{ \"type\": \"object\", \"properties\": " + strings.Replace(formatRes, "{{ .Data }}", v, -1) + "}"
