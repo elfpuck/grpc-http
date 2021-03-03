@@ -21,6 +21,7 @@ const abortIndex int8 = math.MaxInt8 / 2
 type Ctx struct {
 	routePath       string
 	index           int8
+	bodyByte        []byte
 	handlers        handlersChain
 	Context         context.Context
 	writer          http.ResponseWriter
@@ -44,6 +45,7 @@ func (c *Ctx) reset() {
 	c.index = -1
 	c.writer = nil
 	c.Request = nil
+	c.bodyByte = nil
 	c.handlers = c.handlers[0:len(c.engine.globalGroup.handlers)]
 	c.ReqHeaderMD = nil
 	c.ResHeaderMD = metadata.MD{}
@@ -95,21 +97,32 @@ func (c *Ctx) setResHeader() {
 
 // get BodyByte, please using SetBodyByte after GetBodyByte()
 func (c *Ctx) BodyByte(f func(oldBodyByte []byte) (newBodyByte []byte)) []byte {
-	reqBodyByte, _ := ioutil.ReadAll(c.Request.Body)
-	defer c.Request.Body.Close()
-	var res []byte
-	if f != nil {
-		res = f(reqBodyByte)
-	} else {
-		res = reqBodyByte
+	if f == nil{
+		if c.bodyByte != nil{
+			return c.bodyByte
+		}
+		reqBodyByte, _ := ioutil.ReadAll(c.Request.Body)
+		defer c.Request.Body.Close()
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(reqBodyByte))
+		c.bodyByte = reqBodyByte
+		return c.bodyByte
 	}
+
+	oldBodyByte := c.bodyByte
+	if oldBodyByte == nil {
+		reqBodyByte, _ := ioutil.ReadAll(c.Request.Body)
+		defer c.Request.Body.Close()
+		oldBodyByte = reqBodyByte
+	}
+	res := f(oldBodyByte)
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(res))
-	return reqBodyByte
+	c.bodyByte = res
+	return c.bodyByte
 }
 
+
 func (c *Ctx) Unmarshal(req interface{}) error {
-	reqBodyByte := c.BodyByte(nil)
-	if err := json.Unmarshal(reqBodyByte, &req); err != nil {
+	if err := json.Unmarshal(c.BodyByte(nil), &req); err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
