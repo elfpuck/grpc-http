@@ -4,12 +4,13 @@
 ```shell script
 go get -u github.com/golang/protobuf/protoc-gen-go            #生成go代码
 go get -u github.com/elfpuck/grpc-http/protoc-gen-go-http     #生成grpc-http 代码
+go get -u github.com/elfpuck/grpc-http/protoc-gen-go-model    #生成grpc-model 代码
 go get -u github.com/elfpuck/grpc-http/protoc-gen-swagger     #生成swagger
 ```
 
 ## Generate
 ```shell script
-protoc -I=. --go_out=plugins=grpc:. --http_out=. --swagger_out=. xxx.proto
+protoc -I=. --go_out=plugins=grpc:. --go-http_out=. --go-model_out=. --swagger_out=. xxx.proto
 ```
 
 ## Usage
