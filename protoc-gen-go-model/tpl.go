@@ -2,22 +2,15 @@ package main
 
 const TEMPLATE = `
 // {{ .Name }}反射结构
-type ReflectMessageRequest struct{}
-type ReflectMessageResponse struct{}
+type reflectMessage struct{}
 
 func ReflectValueOf () reflect.Value {
-	return reflect.ValueOf(&ReflectMessageRequest{})
+	return reflect.ValueOf(&reflectMessage{})
 }
 
 {{- range .Methods }}
-func (*ReflectMessageRequest) {{ .Name }}() proto.Message {
+func (*reflectMessage) {{ .Name }}() proto.Message {
 	return &{{ .Input }}{}
-}
-{{- end}}
-
-{{- range .Methods }}
-func (*ReflectMessageResponse) {{ .Name }}() proto.Message {
-	return &{{ .Output }}{}
 }
 {{- end}}
 `
