@@ -97,8 +97,8 @@ func (c *Ctx) setResHeader() {
 
 // get BodyByte, please using SetBodyByte after GetBodyByte()
 func (c *Ctx) BodyByte(f func(oldBodyByte []byte) (newBodyByte []byte)) []byte {
-	if f == nil{
-		if c.bodyByte != nil{
+	if f == nil {
+		if c.bodyByte != nil {
 			return c.bodyByte
 		}
 		reqBodyByte, _ := ioutil.ReadAll(c.Request.Body)
@@ -119,7 +119,6 @@ func (c *Ctx) BodyByte(f func(oldBodyByte []byte) (newBodyByte []byte)) []byte {
 	c.bodyByte = res
 	return c.bodyByte
 }
-
 
 func (c *Ctx) Unmarshal(req interface{}) error {
 	if err := json.Unmarshal(c.BodyByte(nil), &req); err != nil {
