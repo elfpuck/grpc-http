@@ -5,25 +5,18 @@ const TEMPLATE = `
 type ReflectMessageRequest struct{}
 type ReflectMessageResponse struct{}
 
-func ReflectValueOfRequest () reflect.Value {
+func ReflectValueOf () reflect.Value {
 	return reflect.ValueOf(&ReflectMessageRequest{})
 }
 
-func ReflectValueOfResponse () reflect.Value {
-	return reflect.ValueOf(&ReflectMessageResponse{})
-}
-
 {{- range .Methods }}
-func (*ReflectMessageRequest) {{ .Name }}Request() proto.Message {
+func (*ReflectMessageRequest) {{ .Name }}() proto.Message {
 	return &{{ .Input }}{}
-}
-func (*ReflectMessageRequest) {{ .Name }}Response() proto.Message {
-	return &{{ .Output }}{}
 }
 {{- end}}
 
 {{- range .Methods }}
-func (*ReflectMessageResponse) {{ .Name }}Response() proto.Message {
+func (*ReflectMessageResponse) {{ .Name }}() proto.Message {
 	return &{{ .Output }}{}
 }
 {{- end}}
