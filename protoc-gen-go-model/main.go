@@ -7,7 +7,6 @@ import (
 	"google.golang.org/protobuf/compiler/protogen"
 	"html/template"
 	"path"
-	"time"
 )
 
 var (
@@ -54,7 +53,6 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	g.P("// \tversion: ")
 	g.P("// \tprotoc-gen-go-model ", version)
 	g.P("// \tprotoc             ", protocVersion)
-	g.P("// \tcreated            ", time.Now().Format("2006-01-02 15:04:05"))
 	g.P("// \tsource             ", file.Proto.GetName())
 	g.P()
 	g.P("package ", file.GoPackageName)

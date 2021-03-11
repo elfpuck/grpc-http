@@ -11,7 +11,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var (
@@ -61,7 +60,7 @@ func generateFileContent(file *protogen.File, g *protogen.GeneratedFile) {
 		PathArr: make([]*pathStruct, 0, 20),
 		PropMap: map[string]string{
 			"info.title":   "\"" + file.Proto.GetPackage() + "\"",
-			"info.version": "\"" + time.Now().Format("2006-01-02 15:04:05") + "\"",
+			"info.version": "\"1.0.0\"",
 		},
 		SchemaMap: map[string]string{},
 	}
