@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -139,6 +140,15 @@ func parseProp(data *PackageData) {
 			}
 		}
 	}
+	sort.Slice(data.PropArr, func(i, j int) bool {
+		return data.PropArr[i].Name > data.PropArr[j].Name
+	})
+	sort.Slice(data.InfoPropArr, func(i, j int) bool {
+		return data.InfoPropArr[i].Name > data.InfoPropArr[j].Name
+	})
+	sort.Slice(data.ComponentsPropArr, func(i, j int) bool {
+		return data.ComponentsPropArr[i].Name > data.ComponentsPropArr[j].Name
+	})
 }
 
 func addSchema(key string, message *protogen.Message, data *PackageData) {
@@ -173,6 +183,10 @@ func parseSchema(data *PackageData) {
 			EndComma: ",",
 		})
 	}
+
+	sort.Slice(data.SchemaArr, func(i, j int) bool {
+		return data.SchemaArr[i].Name > data.SchemaArr[j].Name
+	})
 
 	if len(data.SchemaArr) > 0 {
 		data.SchemaArr[len(data.SchemaArr)-1].EndComma = ""
