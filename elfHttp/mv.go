@@ -59,13 +59,16 @@ func responseFormatMv() HandlerFunc {
 
 func appendCtxHandlersMv() HandlerFunc {
 	return func(c *Ctx) {
-		if c.Request.Method != "POST" || c.Request.Header.Get("content-type") != "application/json" {
-			c.Result(nil, status.Error(codes.InvalidArgument, "Request Should Use POST And application/json"))
+		if c.Request.Method != "POST" {
+			c.Result(nil, status.Error(codes.InvalidArgument, "Request Method Should Use POST "+c.Request.Method))
+		}
+		if c.Request.Header.Get("content-type") != "application/json" {
+			c.Result(nil, status.Error(codes.InvalidArgument, "Request content-type Should Use application/json: "+c.Request.Header.Get("content-type")))
 			return
 		}
 		handlers, ok := c.engine.methodHandlersMap[c.routePath]
 		if !ok {
-			c.Result(nil, status.Error(codes.NotFound, "Not This Method, Please Check And Confirm It: "+c.routePath))
+			c.Result(nil, status.Error(codes.NotFound, "Not Support This Method, Please Check And Confirm It: "+c.routePath))
 			return
 		}
 		c.handlers = append(c.handlers, handlers...)

@@ -99,14 +99,14 @@ func (e *Engine) defaultResponseFormat(c *Ctx, res interface{}, err error) H {
 	if err != nil {
 		status, ok := status.FromError(err)
 		if ok {
-			result["Code"] = status.Code()
+			result["RetCode"] = status.Code()
 			result["Message"] = status.Message()
 		} else {
-			result["Code"] = codes.Internal
+			result["RetCode"] = codes.Internal
 			result["Message"] = err.Error()
 		}
 	} else {
-		result["Code"] = codes.OK
+		result["RetCode"] = codes.OK
 		result["Message"] = "ok"
 		result["Data"] = res
 	}

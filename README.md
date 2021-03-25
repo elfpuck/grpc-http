@@ -43,7 +43,7 @@ func main() {
   @swagger_security [{"tokenAuth":[]}]
   @swagger_info.version "1.0.1"
   @swagger_components.securitySchemes { "tokenAuth": {"type": "apiKey", "in": "cookie", "name":"token"}}
-  @swagger_format.res {"Data": {{ .Data }}, "Code": {"type": "integer"}, "Message": {"type": "string"}
+  @swagger_format.res {"Data": {{ .Data }}, "RetCode": {"type": "integer"}, "Message": {"type": "string"}
  */
 service Demo {}
 ```
