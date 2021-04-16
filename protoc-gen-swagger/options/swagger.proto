@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package elfpuck.options;
+
+option go_package = "./protoc-gen-swagger/options";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FileOptions {
+  Swagger swagger = 51234;
+}
+
+message Swagger{
+  Info info = 2;
+  repeated Server servers = 3;
+  repeated SecuritySchema securitySchemes= 4;
+  repeated Security security = 5;
+  repeated FormatRes formatRes = 6;
+}
+
+message FormatRes{
+  string key = 1;
+  string type = 2;
+  bool primary = 3;
+}
+message Security {
+  string name = 1;
+  repeated string scope = 2;
+}
+message SecuritySchema{
+  string name = 1;
+  SecuritySchemaType type = 2;
+}
+
+message SecuritySchemaType{
+    HttpAuth http = 1;
+    ApiKeyAuth apiKey = 2;
+    openIdConnectUrlAuth openIdConnect = 3;
+    OAuth2Auth oauth2 = 4;
+}
+
+message HttpAuth{
+  string scheme = 2;
+}
+message ApiKeyAuth{
+  string in = 2;
+  string name = 3;
+}
+message openIdConnectUrlAuth{
+  string openIdConnectUrl = 2;
+}
+message OAuth2Auth{
+    Flows flows = 1;
+}
+
+message Flows{
+  AuthorizationCode authorizationCode = 1;
+}
+message AuthorizationCode{
+    string authorizationUrl = 1;
+    string tokenUrl = 2;
+    string scopes = 3;
+}
+
+
+message Server{
+  string url = 1;
+  string description = 2;
+}
+
+message Info {
+  // The title of the application.
+  string title = 1;
+  // A short description of the application. GFM syntax can be used for rich
+  // text representation.
+  string description = 2;
+  // The contact information for the exposed API.
+  Contact contact = 4;
+  // The license information for the exposed API.
+  License license = 5;
+  // Provides the version of the application API (not to be confused
+  // with the specification version).
+  string version = 6;
+}
+
+message Contact {
+  // The identifying name of the contact person/organization.
+  string name = 1;
+  // The URL pointing to the contact information. MUST be in the format of a
+  // URL.
+  string url = 2;
+  // The email address of the contact person/organization. MUST be in the format
+  // of an email address.
+  string email = 3;
+}
+
+message License {
+  // The license name used for the API.
+  string name = 1;
+  // A URL to the license used for the API. MUST be in the format of a URL.
+  string url = 2;
+}
